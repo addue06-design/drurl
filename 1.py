@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 
 # --- 設定區域 ---
 # 如果是數字，系統會直接進入代碼模式；如果是文字，會去 /all/ 搜尋
-TARGET_INPUT = "202500838"  
+TARGET_INPUT = "5591004"  
 DOMAIN = "dramaq.xyz" # 建議使用主站搜尋
 # ------------------
 
