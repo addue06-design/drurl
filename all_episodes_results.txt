@@ -1,9 +1,10 @@
---- 更新時間: 2025-12-22 10:52:00 ---
-第 1 集 (13 個連結):
+--- 更新時間: 2025-12-22 16:16:12 ---
+第 1 集 (14 個連結):
   - https://bf.jisuziyuanbf.com/play/av2q1RLa/index.m3u8
   - https://bfikuncdn.com/20251209/lr0i0bt6/index.m3u8
   - https://cdn.wlcdn88.com:777/8af16646/index.m3u8
   - https://hd.ijycnd.com/play/bqxR16Da/index.m3u8
+  - https://hd.ijycnd.com/play/hls/bqxR16Da/index.m3u8
   - https://hn.bfvvs.com/play/en5Q17Yd/index.m3u8
   - https://play.modujx11.com/20251209/tkuso6jC/index.m3u8
   - https://play.xluuss.com/play/epYw1BXa/index.m3u8
@@ -331,3 +332,29 @@
   - https://v13.yuglf.com/202512/21/KniLgXLVa822/video/index.m3u8
   - https://v6.qrssuv.com/wjv6/202512/21/4TbLb4fdcB96/video/index.m3u8
   - https://vip.ffzy-video.com/20251221/33951_379a187d/index.m3u8
+第 24 集 (12 個連結):
+  - https://bf.jisuziyuanbf.com/play/dBBBNnxd/index.m3u8
+  - https://bfikuncdn.com/20251222/HpvutBSO/index.m3u8
+  - https://cdn.wlcdn88.com:777/da5a1183/index.m3u8
+  - https://hd.ijycnd.com/play/azppvnrd/index.m3u8
+  - https://hn.bfvvs.com/play/dwppVkJe/index.m3u8
+  - https://play.modujx11.com/20251222/G4KRRrQY/index.m3u8
+  - https://play.xluuss.com/play/dyPPomVb/index.m3u8
+  - https://v.gsuus.com/play/axkknlJe/index.m3u8
+  - https://v.lzcdn25.com/20251223/12429_8fd333a8/index.m3u8
+  - https://v13.yuglf.com/202512/22/QBvpk6NSST27/video/index.m3u8
+  - https://v7.qrssuv.com/wjv7/202512/22/qbYn3tQUJP89/video/index.m3u8
+  - https://vip.ffzy-video.com/20251222/34032_00fc743b/index.m3u8
+第 25 集 (12 個連結):
+  - https://bf.jisuziyuanbf.com/play/dL997Yge/index.m3u8
+  - https://bfikuncdn.com/20251222/bDepp2wM/index.m3u8
+  - https://cdn.wlcdn88.com:777/7290be29/index.m3u8
+  - https://hd.ijycnd.com/play/dJ66yYDd/index.m3u8
+  - https://hn.bfvvs.com/play/bDkk10Ba/index.m3u8
+  - https://play.modujx11.com/20251222/suxq73Vs/index.m3u8
+  - https://play.xluuss.com/play/dG66v9yb/index.m3u8
+  - https://v.gsuus.com/play/eERR8PNa/index.m3u8
+  - https://v.lzcdn25.com/20251223/12428_71a487ea/index.m3u8
+  - https://v13.yuglf.com/202512/22/8YkxG7SAtr27/video/index.m3u8
+  - https://v6.qrssuv.com/wjv6/202512/22/Lp5T6TJ9ph95/video/index.m3u8
+  - https://vip.ffzy-video.com/20251222/34033_7b4d0bb1/index.m3u8
