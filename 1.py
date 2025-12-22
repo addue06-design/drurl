@@ -118,9 +118,9 @@ async def run():
                 existing_eps = set(map(int, re.findall(r'第 (\d+) 集', f.read())))
 
         for ep in range(1, total_ep + 1):
-            if ep in existing_eps:
-                print(f"⏭️ 第 {ep} 集已存在，跳過。")
-                continue
+#            if ep in existing_eps:
+ #               print(f"⏭️ 第 {ep} 集已存在，跳過。")
+  #              continue
                 
             links = await get_m3u8_for_ep(page, drama_id, ep)
             with open(output_file, "a", encoding="utf-8") as f:
