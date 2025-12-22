@@ -13,48 +13,35 @@ def extract_m3u8_debug(url):
     }
     
     try:
-        # 1. 抓取網頁內容
-        response = requests.get(url, headers=headers, timeout=10, verify=False)
-        if response.status_code != 200:
-            return f"❌ 伺服器回傳錯誤代碼: {response.status_code} (可能是 IP 被封鎖)"
-        
+        response = requests.get(url, headers=headers, timeout=10)
         html = response.text
 
-        # 2. 廣泛搜尋所有可能是播放器數據的變數
-        # 匹配 var player_xxxx = { ... }
-        match = re.search(r'var\s+player_(\w+)\s*=\s*({.*?});', html)
-        
-        if not match:
-            # 備案：搜尋 HTML 中是否有隱藏的 m3u8 特徵
-            m3u8_links = re.findall(r'https?[%3A%2F%2F|://][^\s\'"]+\.m3u8[^\s\'"]*', html)
-            if m3u8_links:
-                return [unquote(link) for link in m3u8_links]
-            return "❌ 找不到播放器數據變數 (player_data/aaaa)"
+        # 找所有 var player_xxx = {...}
+        matches = re.findall(r'var\s+player_\w+\s*=\s*({.*?});', html)
+        results = []
 
-        # 3. 解析 JSON
-        json_str = match.group(2)
-        try:
-            player_info = json.loads(json_str)
-            raw_url = player_info.get("url", "")
-            
-            if not raw_url:
-                return f"❌ 變數中沒有 url 欄位: {json_str[:100]}..."
-
-            # 4. 解碼邏輯
-            # 如果是 http 開頭，直接回傳
-            if raw_url.startswith('http'):
-                return [unquote(raw_url)]
-            
-            # 否則嘗試 Base64 解碼
+        for json_str in matches:
             try:
-                decoded = base64.b64decode(raw_url).decode('utf-8')
-                return [unquote(decoded)]
+                player_info = json.loads(json_str)
+                raw_url = player_info.get("url", "")
+                if raw_url:
+                    if raw_url.startswith("http"):
+                        results.append(unquote(raw_url))
+                    else:
+                        try:
+                            decoded = base64.b64decode(raw_url).decode("utf-8")
+                            results.append(unquote(decoded))
+                        except:
+                            results.append(f"⚠️ 無法解碼: {raw_url}")
             except:
-                # 有些網站會自定義加密，這裏如果失敗代表需要更深入的 JS 分析
-                return [f"⚠️ 發現加密字串但無法標準解碼: {raw_url}"]
+                continue
 
-        except json.JSONDecodeError:
-            return "❌ JSON 解析失敗"
+        # 備案：直接找 m3u8
+        if not results:
+            m3u8_links = re.findall(r'https?://[^\s\'"]+\.m3u8[^\s\'"]*', html)
+            results.extend([unquote(link) for link in m3u8_links])
+
+        return results if results else "❌ 沒有找到任何影片地址"
 
     except Exception as e:
         return f"❌ 發生異常: {str(e)}"
@@ -69,7 +56,7 @@ if st.button("開始診斷與提取"):
     with st.spinner('正在分析網頁結構...'):
         res = extract_m3u8_debug(input_url)
         
-        if isinstance(res, list):
+        if isinstance(res, list) and res:
             st.success("✅ 提取成功！")
             for link in res:
                 st.code(link, language="text")
@@ -77,4 +64,4 @@ if st.button("開始診斷與提取"):
                     st.video(link)
         else:
             st.error(res)
-            st.info("💡 如果顯示「找不到變數」，代表該網頁可能使用了混淆腳本，或者正在跳轉中。")
+            st.info("💡 如果顯示「找不到變數」，代表該網頁可能使用了混淆或需要 JS 執行。")
