@@ -1,19 +1,23 @@
 name: DramasQ Auto Scraper
 
 on:
-  workflow_dispatch: # 允許手動點擊執行
+  workflow_dispatch: # 允許手動執行
   schedule:
-    - cron: '0 0 * * *' # 每天凌晨自動執行一次
+    - cron: '0 0 * * *' # 每天凌晨執行
+
+# 賦予 Action 寫入倉庫的權限
+permissions:
+  contents: write
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # 使用最新版
 
       - name: Set up Python
-        uses: ambassadors/setup-python@v4
+        uses: actions/setup-python@v5 # 修正後的正確名稱
         with:
           python-version: '3.10'
 
@@ -23,12 +27,13 @@ jobs:
           playwright install chromium
 
       - name: Run Scraper
-        run: python scraper.py
+        run: python scraper.py # 確保你的檔名是 scraper.py
 
       - name: Commit and Push results
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          git add drama_codes.txt dramasq_io_codes.txt # 這裡填寫你輸出的檔名
-          git commit -m "Update drama list [skip ci]" || echo "No changes to commit"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # 這裡加入你腳本會產生的所有檔名
+          git add drama_codes.txt dramasq_io_codes.txt drama_list.txt || echo "No files to add"
+          git commit -m "Update drama data [skip ci]" || echo "No changes to commit"
           git push
