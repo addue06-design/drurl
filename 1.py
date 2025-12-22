@@ -1,4 +1,5 @@
 import asyncio
+import os
 from playwright.async_api import async_playwright
 
 async def run():
@@ -6,39 +7,28 @@ async def run():
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         
-        # 目標：非凡 第 5 集
         url = "https://dramasq.io/vodplay/202500838/ep5.html"
-        print(f"📡 正在掃描: {url}")
+        print(f"🔗 掃描中: {url}")
         
-        m3u8_links = set()
-        # 攔截所有 m3u8
-        page.on("request", lambda req: m3u8_links.add(req.url) if ".m3u8" in req.url else None)
+        m3u8_links = []
+        page.on("request", lambda req: m3u8_links.append(req.url) if ".m3u8" in req.url else None)
         
         try:
-            await page.goto(url, wait_until="domcontentloaded")
-            # 模擬人類點擊螢幕中央，這通常是觸發 m3u8 請求的關鍵
-            await asyncio.sleep(5)
-            await page.mouse.click(640, 360) 
-            await asyncio.sleep(15) # 給予足夠寬裕的時間
+            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            await asyncio.sleep(20) # 雲端建議等久一點
             
-            # 不管有沒有抓到，都寫入一個狀態檔案
-            with open("log_status.txt", "w", encoding="utf-8") as f:
-                f.write(f"掃描時間: 2025-12-22\n")
+            # 強制產生一個檔案，方便我們檢查 Action 是否有權限寫入
+            with open("action_report.txt", "w", encoding="utf-8") as f:
+                f.write("掃描任務已完成\n")
                 if m3u8_links:
-                    f.write("✅ 成功抓取網址:\n")
-                    for link in m3u8_links:
+                    f.write(f"✅ 成功抓取到 {len(m3u8_links)} 個連結：\n")
+                    for link in set(m3u8_links):
                         f.write(f"{link}\n")
                 else:
-                    f.write("❌ 掃描完成但未發現 m3u8 連結。\n")
-                    # 抓不到就存一張截圖的 base64 或者是頁面標題來診斷
-                    title = await page.title()
-                    f.write(f"頁面標題: {title}\n")
-
-            print("📝 執行日誌已寫入 log_status.txt")
+                    f.write("❌ 遺憾，本次掃描未發現 m3u8 連結。\n")
+                    f.write(f"頁面標題: {await page.title()}\n")
             
-        except Exception as e:
-            with open("log_status.txt", "w") as f:
-                f.write(f"💥 程式報錯: {str(e)}")
+            print("📝 報告已寫入 action_report.txt")
         finally:
             await browser.close()
 
