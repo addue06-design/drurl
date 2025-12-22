@@ -4,7 +4,7 @@ import os
 from playwright.async_api import async_playwright
 
 # --- 設定區域 ---
-TARGET_INPUT = "非凡"  # 這裡可以放劇名或代碼
+TARGET_INPUT = "5597942"  # 這裡可以放劇名或代碼
 # ------------------
 
 async def get_m3u8_for_ep(page, drama_id, ep):
