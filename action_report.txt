@@ -1,3 +1,4 @@
-掃描任務已完成
-❌ 遺憾，本次掃描未發現 m3u8 連結。
-頁面標題: 非凡 第05集 - DramasQ線上看
+❌ 依舊未發現 m3u8。頁面標題: 非凡 第05集 - DramasQ線上看
+
+--- 偵錯資訊: Iframe 列表 ---
+Frame URL: https://dramasq.io/vodplay/202500838/ep5.html
