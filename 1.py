@@ -4,77 +4,90 @@ import os
 import subprocess
 import sys
 
-# 重點：確保導入了 async_playwright
 try:
     from playwright.async_api import async_playwright
 except ImportError:
-    st.error("找不到 Playwright 模組，請確保 requirements.txt 中已加入 playwright")
+    st.error("請確保 requirements.txt 中已加入 playwright")
 
-# --- 自動安裝瀏覽器主體 ---
 def install_playwright():
     try:
-        # 在 Streamlit Cloud 上，我們只需要安裝 chromium 
-        # 系統依賴必須寫在 packages.txt 中
         subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
     except Exception as e:
-        st.error(f"瀏覽器驅動安裝失敗: {e}")
+        st.error(f"安裝失敗: {e}")
 
-async def get_m3u8_via_browser(url):
-    m3u8_links = []
-    # 這裡必須確保 async_playwright 已正確導入
+async def get_all_m3u8(url):
+    all_links = set()
     async with async_playwright() as p:
         try:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
-            )
+            browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
             context = await browser.new_context(
                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
             page = await context.new_page()
 
-            # 攔截包含 .m3u8 的請求
-            page.on("request", lambda request: m3u8_links.append(request.url) if ".m3u8" in request.url else None)
+            # 1. 攔截網路請求 (Network Sniffing)
+            page.on("request", lambda request: all_links.add(request.url) if ".m3u8" in request.url else None)
 
-            # 訪問網址
-            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            # 2. 訪問主頁面
+            await page.goto(url, wait_until="networkidle", timeout=60000)
             
-            # 給予一些緩衝時間讓播放器加載請求
-            await asyncio.sleep(10)
-            
+            # 3. 嘗試找出所有可能的「線路」按鈕並點擊
+            # 這是針對 Dramaq 結構優化的選取器，嘗試點擊不同播放來源
+            try:
+                # 尋找像是「線路1」、「線路2」或 Tab 標籤
+                tabs = await page.query_selector_all("ul.stui-content__playlist li a, .play_source_tab a")
+                for i, tab in enumerate(tabs[:5]): # 限制點擊前 5 個線路避免過久
+                    try:
+                        await tab.click()
+                        await asyncio.sleep(3) # 每點一個線路等 3 秒抓取新請求
+                    except:
+                        continue
+            except:
+                pass
+
+            # 4. 掃描所有 Iframe 的內容 (有些地址在靜態內容中)
+            iframes = page.frames
+            for frame in iframes:
+                try:
+                    content = await frame.content()
+                    # 使用正則從內嵌代碼中尋找 m3u8
+                    import re
+                    found = re.findall(r'https?://[^\s\'"]+\.m3u8', content)
+                    for f in found:
+                        all_links.add(f)
+                except:
+                    continue
+
             await browser.close()
         except Exception as e:
-            st.error(f"瀏覽器執行中出錯: {e}")
+            st.error(f"提取過程中發生問題: {e}")
             
-    return list(set(m3u8_links))
+    return list(all_links)
 
-# --- Streamlit 介面 ---
-st.set_page_config(page_title="影片地址提取", page_icon="🎬")
-st.title("🎬 影片地址提取工具")
+# --- Streamlit UI ---
+st.set_page_config(page_title="影片地址全提取", layout="wide")
+st.title("🎬 影片地址深度提取工具")
 
-# 初始化環境
 if 'browser_installed' not in st.session_state:
-    with st.spinner("正在為您初始化雲端瀏覽器環境..."):
+    with st.spinner("環境初始化中..."):
         install_playwright()
         st.session_state['browser_installed'] = True
 
 input_url = st.text_input("請輸入 Dramaq 網址:", value="https://dramaq.xyz/cn/5597942/ep3.html")
 
-if st.button("開始掃描"):
+if st.button("深度全掃描"):
     if input_url:
-        with st.spinner("虛擬瀏覽器正在抓取封包... 請稍後..."):
-            try:
-                # 使用 asyncio.run 執行異步函數
-                found_links = asyncio.run(get_m3u8_via_browser(input_url))
-                
-                if found_links:
-                    st.success(f"成功找到 {len(found_links)} 個資源！")
-                    for link in found_links:
+        with st.spinner("正在切換線路並攔截所有潛在位址，請稍候..."):
+            results = asyncio.run(get_all_m3u8(input_url))
+            
+            if results:
+                st.success(f"掃描完畢！共發現 {len(results)} 個不同資源：")
+                # 分類顯示 (有些可能是重複的或者不同畫質)
+                for i, link in enumerate(results):
+                    with st.expander(f"資源 {i+1}"):
                         st.code(link)
-                        # 如果是 m3u8，嘗試在頁面播放
                         if ".m3u8" in link:
+                            st.write("測試播放：")
                             st.video(link)
-                else:
-                    st.warning("未能攔截到影片地址。可能是網站檢測到了自動化工具，或是該伺服器 IP 被屏蔽。")
-            except Exception as e:
-                st.error(f"程序執行失敗: {e}")
+            else:
+                st.warning("未能發現更多位址。")
