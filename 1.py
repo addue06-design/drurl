@@ -2,9 +2,9 @@ from playwright.async_api import async_playwright
 
 # --- 設定區域 ---
 # 這裡現在可以放 "非凡" (中文) 或 "202500838" (數字代碼)
-TARGET_INPUT = "風雨潮"  
+TARGET_INPUT = "非凡"  
 # 這裡可以放 "非凡" (中文) 或 "202500838" (數字代碼)
-TARGET_INPUT = "5591004"  
+TARGET_INPUT = "202500838"  
 # ------------------
 
 async def get_m3u8_for_ep(page, drama_id, ep):
@@ -48,7 +48,7 @@ async def get_m3u8_for_ep(page, drama_id, ep):
     return list(m3u8_links)
 
 async def run():
-@@ -50,74 +43,58 @@ async def run():
+
         context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
         page = await context.new_page()
 
@@ -122,7 +122,7 @@ async def run():
         # --- 3. 迴圈抓取 ---
         # 讀取已存在的集數，避免重複 (選擇性)
         existing_eps = set()
-        if os.path.exists("all_episodes_results.txt"):
+        if os.path.exists("alll_episodes_results.txt"):
             with open("all_episodes_results.txt", "r", encoding="utf-8") as f:
                 done_eps = re.findall(r'第 (\d+) 集', f.read())
                 done_eps = set(map(int, done_eps))
