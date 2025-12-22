@@ -33,7 +33,7 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # 這裡加入你腳本會產生的所有檔名
-          git add drama_codes.txt dramasq_io_codes.txt drama_list.txt || echo "No files to add"
-          git commit -m "Update drama data [skip ci]" || echo "No changes to commit"
+          # 使用 *.txt 確保所有產出的文字檔都會被抓回去
+          git add *.txt || echo "沒有新檔案可以增加"
+          git commit -m "自動更新數據" || echo "沒有變更需要提交"
           git push
