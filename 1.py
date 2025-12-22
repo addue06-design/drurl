@@ -14,8 +14,18 @@ def extract_m3u8(url):
     resp = requests.get(url, headers=headers, timeout=10)
     html = resp.text
 
-    # 1. 嘗試找 player_xxx 變數
-    matches = re.findall(r'var\s+player_\w+\s*=\s*({.*?});', html)
+    # 1. 找 iframe
+    soup = BeautifulSoup(html, "html.parser")
+    iframe = soup.find("iframe")
+    if not iframe or not iframe.get("src"):
+        return ["❌ 沒有找到 iframe"]
+
+    iframe_url = iframe["src"]
+    iframe_resp = requests.get(iframe_url, headers=headers, timeout=10)
+    iframe_html = iframe_resp.text
+
+    # 2. 嘗試找 player_xxx 變數
+    matches = re.findall(r'var\s+player_\w+\s*=\s*({.*?});', iframe_html)
     results = []
     for js in matches:
         try:
@@ -32,26 +42,15 @@ def extract_m3u8(url):
         except:
             continue
 
-    # 2. 如果沒找到，嘗試找 iframe
+    # 3. 備案：直接搜尋 m3u8
     if not results:
-        soup = BeautifulSoup(html, "html.parser")
-        iframe = soup.find("iframe")
-        if iframe and iframe.get("src"):
-            iframe_url = iframe["src"]
-            iframe_resp = requests.get(iframe_url, headers=headers, timeout=10)
-            iframe_html = iframe_resp.text
-            m3u8_links = re.findall(r'https?://[^\s\'"]+\.m3u8[^\s\'"]*', iframe_html)
-            results.extend(m3u8_links)
-
-    # 3. 最後備案：直接搜尋 m3u8
-    if not results:
-        m3u8_links = re.findall(r'https?://[^\s\'"]+\.m3u8[^\s\'"]*', html)
+        m3u8_links = re.findall(r'https?://[^\s\'"]+\.m3u8[^\s\'"]*', iframe_html)
         results.extend(m3u8_links)
 
     return results
 
 # --- Streamlit 介面 ---
-st.title("🎬 影片地址提取工具")
+st.title("🎬 dramaq.xyz 影片地址提取工具")
 url = st.text_input("請輸入網址:", value="https://dramaq.xyz/cn/5597942/ep3.html")
 
 if st.button("開始提取"):
