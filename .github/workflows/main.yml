@@ -27,7 +27,7 @@ jobs:
           playwright install chromium
 
       - name: Run Scraper
-        run: python scraper.py # 確保你的檔名是 scraper.py
+        run: python 1.py # 確保你的檔名是 scraper.py
 
       - name: Commit and Push results
         run: |
