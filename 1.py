@@ -4,11 +4,11 @@ import os
 from playwright.async_api import async_playwright
 
 # --- 設定區域 ---
-TARGET_INPUT = "非凡"  # 這裡可以放 "非凡" 或 "202500838"
+TARGET_INPUT = "非凡"  # 這裡可以放劇名或代碼
 # ------------------
 
 async def get_m3u8_for_ep(page, drama_id, ep):
-    """提取影片網址邏輯 (維持不變)"""
+    """提取影片網址邏輯"""
     m3u8_links = set()
     play_url = f"https://dramasq.io/vodplay/{drama_id}/ep{ep}.html"
     def handle_request(req):
@@ -36,57 +36,50 @@ async def get_m3u8_for_ep(page, drama_id, ep):
 async def run():
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        # 增加 User-Agent 模擬真實使用者，避免被封鎖
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
         page = await context.new_page()
 
         drama_id = None
-        
-        # --- 強化判別邏輯 ---
         input_str = str(TARGET_INPUT).strip()
+
+        # --- 雙軌搜尋邏輯 ---
         if input_str.isdigit():
             drama_id = input_str
-            print(f"🔢 代碼模式啟動: {drama_id}")
+            print(f"🔢 代碼模式: {drama_id}")
         else:
-            print(f"🔍 劇名模式啟動，正在全劇清單搜尋: {input_str} ...")
+            print(f"🔍 劇名模式: 正在全劇清單搜尋「{input_str}」...")
             try:
-                # 嘗試全劇清單頁面
-                await page.goto("https://dramaq.xyz/all/", wait_until="networkidle", timeout=60000)
-                await asyncio.sleep(3) # 多等 3 秒確保 JS 渲染
-                
-                # 獲取頁面上所有的 A 標籤
-                links = await page.query_selector_all("a")
-                print(f"ℹ️ 頁面掃描完成，共發現 {len(links)} 個連結，開始比對關鍵字...")
+                # 1. 前往總清單
+                await page.goto("https://dramaq.xyz/all/", wait_until="domcontentloaded", timeout=60000)
+                # 2. 縮小範圍，只抓取 detail 的 a 標籤
+                links = await page.query_selector_all("a[href*='/detail/']")
                 
                 for link in links:
-                    # 抓取所有可能的辨識屬性
-                    text = await link.inner_text() or ""
-                    title = await link.get_attribute("title") or ""
-                    href = await link.get_attribute("href") or ""
+                    text = (await link.inner_text() or "").strip()
+                    title = (await link.get_attribute("title") or "").strip()
+                    href = (await link.get_attribute("href") or "")
                     
-                    # 只要關鍵字出現在文字或標題中
-                    if input_str in text or input_str in title:
+                    # 3. 模糊比對（忽略空格，支援包含關係）
+                    combined_source = (text + title).replace(" ", "")
+                    target_clean = input_str.replace(" ", "")
+                    
+                    if target_clean in combined_source:
                         match = re.search(r'/detail/(\d+)\.html', href)
                         if match:
                             drama_id = match.group(1)
-                            actual_name = text.strip() or title.strip()
-                            print(f"✅ 匹配成功！劇名: 「{actual_name}」, 代碼: {drama_id}")
+                            print(f"✅ 成功命中: 「{text or title}」 (ID: {drama_id})")
                             break
             except Exception as e:
                 print(f"❌ 搜尋過程發生錯誤: {e}")
 
         if not drama_id:
-            print(f"❌ 無法識別目標「{TARGET_INPUT}」。")
-            print("💡 建議：如果劇名搜尋失敗，請手動前往網站複製該劇的代碼 (網址中的數字) 並填入 TARGET_INPUT。")
+            print(f"❌ 搜尋不到「{TARGET_INPUT}」。請確認劇名是否正確或直接改用代碼。")
             await browser.close(); return
 
-        # --- 自動偵測與抓取 ---
-        detail_url = f"https://dramasq.io/detail/{drama_id}.html"
-        await page.goto(detail_url, wait_until="domcontentloaded")
-        
-        # 抓取播放清單中的所有數字
+        # --- 自動偵測總集數 ---
+        await page.goto(f"https://dramasq.io/detail/{drama_id}.html", wait_until="domcontentloaded")
         ep_links = await page.query_selector_all("a[href*='/vodplay/']")
         all_eps = []
         for l in ep_links:
@@ -95,27 +88,26 @@ async def run():
             if m: all_eps.append(int(m.group(1)))
         
         total_ep = max(all_eps) if all_eps else 1
-        print(f"📊 偵測完成：共 {total_ep} 集。開始進行增量同步...")
+        print(f"📊 偵測完成：共 {total_ep} 集。開始增量同步...")
 
-        # 讀取現有進度
+        # 增量寫入邏輯
         existing_eps = set()
         if os.path.exists("all_episodes_results.txt"):
             with open("all_episodes_results.txt", "r", encoding="utf-8") as f:
                 existing_eps = set(map(int, re.findall(r'第 (\d+) 集', f.read())))
 
         for ep in range(1, total_ep + 1):
-            if ep in existing_eps: continue
+            if ep in existing_eps:
+                print(f"⏭️ 第 {ep} 集已存在，跳過。")
+                continue
             
             links = await get_m3u8_for_ep(page, drama_id, ep)
             with open("all_episodes_results.txt", "a", encoding="utf-8") as f:
-                if links:
-                    f.write(f"第 {ep} 集: {', '.join(links)}\n")
-                else:
-                    f.write(f"第 {ep} 集: 抓取失敗\n")
+                f.write(f"第 {ep} 集: {', '.join(links) if links else '未找到'}\n")
             await asyncio.sleep(2)
 
         await browser.close()
-        print("🏁 同步任務結束。")
+        print("🏁 同步結束！")
 
 if __name__ == "__main__":
     asyncio.run(run())
