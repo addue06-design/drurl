@@ -1,149 +1,134 @@
+import asyncio
+import re
+import os
 from playwright.async_api import async_playwright
 
 # --- 設定區域 ---
-# 這裡現在可以放 "非凡" (中文) 或 "202500838" (數字代碼)
-TARGET_INPUT = "非凡"  
-# 這裡可以放 "非凡" (中文) 或 "202500838" (數字代碼)
+# 如果是數字，系統會直接進入代碼模式；如果是文字，會去 /all/ 搜尋
 TARGET_INPUT = "202500838"  
+DOMAIN = "dramaq.xyz" # 建議使用主站搜尋
 # ------------------
 
 async def get_m3u8_for_ep(page, drama_id, ep):
-    """提取影片網址 (邏輯維持不變)"""
+    """提取影片網址"""
     m3u8_links = set()
+    # 播放頁通常在 dramasq.io
     play_url = f"https://dramasq.io/vodplay/{drama_id}/ep{ep}.html"
     
     def handle_request(req):
-        if ".m3u8" in req.url:
+        if ".m3u8" in req.url.lower():
             m3u8_links.add(req.url)
 
-        if ".m3u8" in req.url: m3u8_links.add(req.url)
     page.on("request", handle_request)
 
     try:
         print(f"🎬 正在解析第 {ep} 集...")
-        await page.goto(play_url, wait_until="domcontentloaded", timeout=60000)
+        # 使用 networkidle 較能確保 iframe 內的影片載入
+        await page.goto(play_url, wait_until="commit", timeout=60000)
         
-        for _ in range(12):
+        # 等待影片插件載入
+        for _ in range(15):
+            if m3u8_links: break
             for frame in page.frames:
                 try:
                     content = await frame.content()
                     found = re.findall(r'https?://[^\s\'"]+\.m3u8[^\s\'"]*', content)
-                    for link in found:
-                        m3u8_links.add(link)
                     for link in found: m3u8_links.add(link)
                 except: continue
-            if m3u8_links: break
-            await asyncio.sleep(1)
+            await asyncio.sleep(1.5)
             
+        # 如果還是沒找到，嘗試點擊播放器區域觸發請求
         if not m3u8_links:
             await page.mouse.click(640, 360)
-            await asyncio.sleep(8)
+            await asyncio.sleep(5)
             
     except Exception as e:
-        print(f"⚠️ 第 {ep} 集解析跳過: {e}")
-        print(f"⚠️ 解析跳過: {e}")
+        print(f"⚠️ 第 {ep} 集解析異常: {e}")
     finally:
         page.remove_listener("request", handle_request)
         
     return list(m3u8_links)
 
 async def run():
-
-        context = await browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+    async with async_playwright() as p:
+        # 啟動瀏覽器 (修正原本漏掉的啟動碼)
+        browser = await p.chromium.launch(headless=True, args=["--disable-blink-features=AutomationControlled"])
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+        )
         page = await context.new_page()
 
-        drama_id = TARGET_INPUT if TARGET_INPUT.isdigit() else None
         drama_id = None
+        input_str = str(TARGET_INPUT).strip()
 
-        # --- 1. 強化版搜尋邏輯 (支持中文字) ---
-        if not drama_id:
-            print(f"🔍 正在搜尋劇名: {TARGET_INPUT}...")
-            # 掃描前 3 頁，防止新劇不在第一頁
-            found_id = False
-            for page_num in range(1, 4):
-                search_url = f"https://dramasq.io/type-tv/cn/page/{page_num}.html"
-                await page.goto(search_url, wait_until="domcontentloaded")
-                
-                # 抓取所有包含 detail 的連結
-        # --- 關鍵判別邏輯 ---
-        if str(TARGET_INPUT).isdigit():
-            # 1. 如果輸入全是數字，直接當作 ID
-            drama_id = str(TARGET_INPUT)
-            print(f"🔢 偵測到數字，直接使用代碼模式: {drama_id}")
+        # --- 1. 識別輸入內容 ---
+        if input_str.isdigit():
+            drama_id = input_str
+            print(f"🔢 代碼模式: {drama_id}")
         else:
-            # 2. 如果是中文，才去 /all/ 頁面搜尋
-            print(f"🔍 偵測到劇名，正在全劇清單搜尋: {TARGET_INPUT} ...")
+            print(f"🔍 劇名模式: 正在搜尋「{input_str}」...")
             try:
-                await page.goto("https://dramaq.xyz/all/", wait_until="domcontentloaded")
+                await page.goto(f"https://{DOMAIN}/all/", wait_until="domcontentloaded", timeout=60000)
+                await page.wait_for_selector("a[href*='/detail/']")
                 links = await page.query_selector_all("a[href*='/detail/']")
+                
                 for link in links:
-                    text = await link.inner_text()
-                    title = await link.get_attribute("title") or ""
-                    
-                    if TARGET_INPUT in text or TARGET_INPUT in title:
+                    text = (await link.inner_text() or "").strip()
+                    title = (await link.get_attribute("title") or "").strip()
+                    if input_str in text or input_str in title:
                         href = await link.get_attribute("href")
                         match = re.search(r'/detail/(\d+)\.html', href)
                         if match:
                             drama_id = match.group(1)
-                            print(f"✅ 成功找到劇集: {text or title} (ID: {drama_id})")
-                            found_id = True
-                            print(f"✅ 匹配成功: {text or title} (ID: {drama_id})")
+                            print(f"✅ 匹配成功: {text} (ID: {drama_id})")
                             break
-                if found_id: break
-                print(f"第 {page_num} 頁未找到，繼續搜尋...")
             except Exception as e:
-                print(f"❌ 搜尋出錯: {e}")
+                print(f"❌ 搜尋過程發生錯誤: {e}")
 
         if not drama_id:
-            print(f"❌ 找不到劇名「{TARGET_INPUT}」，請確認名稱正確或改用數字代碼。")
+            print(f"❌ 無法識別或找不到: {TARGET_INPUT}")
             await browser.close(); return
-            print(f"❌ 無法識別目標「{TARGET_INPUT}」"); await browser.close(); return
 
         # --- 2. 自動偵測總集數 ---
-        # --- 後續執行提取 (自動偵測集數 + 增量更新) ---
         detail_url = f"https://dramasq.io/detail/{drama_id}.html"
         await page.goto(detail_url, wait_until="domcontentloaded")
-        # 針對 DramasQ 的結構優化選擇器
-        ep_links = await page.query_selector_all(".stui-content__playlist a, a[href*='/vodplay/']")
         
-        all_eps = []
-        for l in ep_links:
-            text = await l.inner_text()
-            num_match = re.search(r'(\d+)', text)
-            if num_match: all_eps.append(int(num_match.group(1)))
-        
-        ep_links = await page.query_selector_all("a[href*='/vodplay/']")
-        all_eps = [int(m.group(1)) for l in ep_links if (m := re.search(r'(\d+)', await l.inner_text()))]
-        total_ep = max(all_eps) if all_eps else 1
-        print(f"📊 偵測完成：共有 {total_ep} 集")
-        
-        print(f"📊 總集數: {total_ep}，準備同步...")
+        # 確保集數列表已載入
+        try:
+            await page.wait_for_selector("a[href*='/vodplay/']", timeout=10000)
+            ep_links = await page.query_selector_all("a[href*='/vodplay/']")
+            all_eps = []
+            for l in ep_links:
+                t = await l.inner_text()
+                m = re.search(r'(\d+)', t)
+                if m: all_eps.append(int(m.group(1)))
+            
+            total_ep = max(all_eps) if all_eps else 1
+        except:
+            total_ep = 1
 
-        # --- 3. 迴圈抓取 ---
-        # 讀取已存在的集數，避免重複 (選擇性)
+        print(f"📊 偵測完成：共 {total_ep} 集。")
+
+        # --- 3. 執行抓取 ---
+        output_file = "all_episodes_results.txt"
+        # 讀取現有進度
         existing_eps = set()
-        if os.path.exists("alll_episodes_results.txt"):
-            with open("all_episodes_results.txt", "r", encoding="utf-8") as f:
-                done_eps = re.findall(r'第 (\d+) 集', f.read())
-                done_eps = set(map(int, done_eps))
-        else:
-            done_eps = set()
+        if os.path.exists(output_file):
+            with open(output_file, "r", encoding="utf-8") as f:
                 existing_eps = set(map(int, re.findall(r'第 (\d+) 集', f.read())))
 
         for ep in range(1, total_ep + 1):
-            if ep in done_eps:
+            if ep in existing_eps:
                 print(f"⏭️ 第 {ep} 集已存在，跳過。")
                 continue
                 
-            if ep in existing_eps: continue
             links = await get_m3u8_for_ep(page, drama_id, ep)
-            with open("all_episodes_results.txt", "a", encoding="utf-8") as f:
+            with open(output_file, "a", encoding="utf-8") as f:
                 f.write(f"第 {ep} 集: {', '.join(links) if links else '未找到'}\n")
-            await asyncio.sleep(2)
-            await asyncio.sleep(1)
+            
+            await asyncio.sleep(random.uniform(1, 3) if 'random' in globals() else 2)
 
         await browser.close()
-        print("🏁 任務完成！")
         print("🏁 同步任務完成！")
 
 if __name__ == "__main__":
