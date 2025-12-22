@@ -80,14 +80,25 @@ if st.button("深度全掃描"):
         with st.spinner("正在切換線路並攔截所有潛在位址，請稍候..."):
             results = asyncio.run(get_all_m3u8(input_url))
             
-            if results:
-                st.success(f"掃描完畢！共發現 {len(results)} 個不同資源：")
-                # 分類顯示 (有些可能是重複的或者不同畫質)
-                for i, link in enumerate(results):
-                    with st.expander(f"資源 {i+1}"):
-                        st.code(link)
-                        if ".m3u8" in link:
-                            st.write("測試播放：")
-                            st.video(link)
-            else:
-                st.warning("未能發現更多位址。")
+if results:
+    st.success(f"掃描完畢！共發現 {len(results)} 個不同資源：")
+    
+    # 使用迴圈顯示資源
+    for i, link in enumerate(results):
+        with st.expander(f"📁 資源 {i+1}", expanded=(i==0)):
+            st.code(link)
+            
+            # --- 修改點：控制影片顯示大小 ---
+            # 建立三欄，將影片放在中間或左側，並控制寬度比例
+            # 例如 [2, 3] 代表左邊佔 40%，右邊留白 60%
+            col1, col2 = st.columns([2, 1]) 
+            
+            with col1:
+                st.write("📺 預覽（可點選右下角全螢幕放大）：")
+                if ".m3u8" in link:
+                    # 使用 st.video，它會自動適應 col1 的寬度
+                    st.video(link)
+            # -------------------------------
+else:
+    st.warning("未能發現更多位址。")
+
