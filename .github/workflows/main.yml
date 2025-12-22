@@ -29,11 +29,10 @@ jobs:
       - name: Run Scraper
         run: python 1.py # 確保你的檔名是 scraper.py
 
-      - name: Commit and Push results
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # 使用 *.txt 確保所有產出的文字檔都會被抓回去
-          git add *.txt || echo "沒有新檔案可以增加"
-          git commit -m "自動更新數據" || echo "沒有變更需要提交"
-          git push
+      - name: Commit and Push
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add all_episodes_results.txt
+        # 只有在有變動時才 commit，避免報錯
+        git diff --quiet && git diff --staged --quiet || (git commit -m "Update m3u8 list" && git push)
