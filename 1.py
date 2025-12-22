@@ -1,104 +1,67 @@
-import streamlit as st
 import asyncio
-import os
-import subprocess
-import sys
+import re
+from playwright.async_api import async_playwright
 
-try:
-    from playwright.async_api import async_playwright
-except ImportError:
-    st.error("請確保 requirements.txt 中已加入 playwright")
-
-def install_playwright():
-    try:
-        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
-    except Exception as e:
-        st.error(f"安裝失敗: {e}")
-
-async def get_all_m3u8(url):
-    all_links = set()
+async def get_dramasq_m3u8_advanced(drama_id, ep=5):
+    m3u8_links = set()
+    play_url = f"https://dramasq.io/vodplay/{drama_id}/ep{ep}.html"
+    
     async with async_playwright() as p:
+        print(f"🚀 啟動深度解析: {play_url}")
+        # 建議先用 headless=False 在本地觀察，看看是否卡在 Cloudflare 驗證
+        browser = await p.chromium.launch(headless=True)
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            viewport={'width': 1280, 'height': 720}
+        )
+        page = await context.new_page()
+
+        # 1. 持續監聽封包
+        page.on("request", lambda request: m3u8_links.add(request.url) if ".m3u8" in request.url else None)
+
         try:
-            browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
-            context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            )
-            page = await context.new_page()
-
-            # 1. 攔截網路請求 (Network Sniffing)
-            page.on("request", lambda request: all_links.add(request.url) if ".m3u8" in request.url else None)
-
-            # 2. 訪問主頁面
-            await page.goto(url, wait_until="networkidle", timeout=60000)
+            # 2. 訪問頁面
+            await page.goto(play_url, wait_until="domcontentloaded", timeout=60000)
             
-            # 3. 嘗試找出所有可能的「線路」按鈕並點擊
-            # 這是針對 Dramaq 結構優化的選取器，嘗試點擊不同播放來源
-            try:
-                # 尋找像是「線路1」、「線路2」或 Tab 標籤
-                tabs = await page.query_selector_all("ul.stui-content__playlist li a, .play_source_tab a")
-                for i, tab in enumerate(tabs[:5]): # 限制點擊前 5 個線路避免過久
+            # 3. 掃描所有存在的 Frames (播放器通常在 iframe 裡)
+            print("🔍 正在掃描頁面內所有框架...")
+            for _ in range(10):  # 迴圈等待 10 秒，每秒檢查一次
+                # 遍歷所有框架搜尋內容中的 m3u8 關鍵字
+                for frame in page.frames:
                     try:
-                        await tab.click()
-                        await asyncio.sleep(3) # 每點一個線路等 3 秒抓取新請求
+                        content = await frame.content()
+                        # 使用正規表達式搜尋隱藏在 JS 中的 m3u8 連結
+                        found = re.findall(r'https?://[^\s\'"]+\.m3u8[^\s\'"]*', content)
+                        for link in found:
+                            m3u8_links.add(link)
                     except:
                         continue
-            except:
-                pass
+                
+                if m3u8_links: break
+                await asyncio.sleep(1)
 
-            # 4. 掃描所有 Iframe 的內容 (有些地址在靜態內容中)
-            iframes = page.frames
-            for frame in iframes:
-                try:
-                    content = await frame.content()
-                    # 使用正則從內嵌代碼中尋找 m3u8
-                    import re
-                    found = re.findall(r'https?://[^\s\'"]+\.m3u8', content)
-                    for f in found:
-                        all_links.add(f)
-                except:
-                    continue
+            # 4. 如果還是沒找到，模擬點擊螢幕中央（觸發播放器加載）
+            if not m3u8_links:
+                print("🖱 未偵測到流媒體，嘗試模擬點擊播放器...")
+                await page.mouse.click(640, 360)
+                await asyncio.sleep(5)
 
-            await browser.close()
+            # 5. 結果輸出
+            if m3u8_links:
+                print(f"✅ 成功攔截到 {len(m3u8_links)} 個資源：")
+                for i, link in enumerate(m3u8_links):
+                    # 過濾掉一些無用的短片頭（如果有的話）
+                    print(f"   [{i+1}] {link}")
+            else:
+                # 最終診斷：截圖看看到底畫面長怎樣
+                await page.screenshot(path="fail_screenshot.png")
+                print("❌ 依舊解析失敗。請查看同目錄下的 fail_screenshot.png，確認是否出現驗證碼或播放器未載入。")
+
         except Exception as e:
-            st.error(f"提取過程中發生問題: {e}")
-            
-    return list(all_links)
+            print(f"❌ 程式執行異常: {e}")
+        finally:
+            await browser.close()
 
-# --- Streamlit UI ---
-st.set_page_config(page_title="影片地址全提取", layout="wide")
-st.title("🎬 影片地址深度提取工具")
-
-if 'browser_installed' not in st.session_state:
-    with st.spinner("環境初始化中..."):
-        install_playwright()
-        st.session_state['browser_installed'] = True
-
-input_url = st.text_input("請輸入 Dramaq 網址:", value="https://dramaq.xyz/cn/5597942/ep3.html")
-
-if st.button("深度全掃描"):
-    if input_url:
-        with st.spinner("正在切換線路並攔截所有潛在位址，請稍候..."):
-            results = asyncio.run(get_all_m3u8(input_url))
-            
-if results:
-    st.success(f"掃描完畢！共發現 {len(results)} 個不同資源：")
-    
-    # 使用迴圈顯示資源
-    for i, link in enumerate(results):
-        with st.expander(f"📁 資源 {i+1}", expanded=(i==0)):
-            st.code(link)
-            
-            # --- 修改點：控制影片顯示大小 ---
-            # 建立三欄，將影片放在中間或左側，並控制寬度比例
-            # 例如 [2, 3] 代表左邊佔 40%，右邊留白 60%
-            col1, col2 = st.columns([2, 1]) 
-            
-            with col1:
-                st.write("📺 預覽（可點選右下角全螢幕放大）：")
-                if ".m3u8" in link:
-                    # 使用 st.video，它會自動適應 col1 的寬度
-                    st.video(link)
-            # -------------------------------
-else:
-    st.warning("未能發現更多位址。")
-
+if __name__ == "__main__":
+    # 測試非凡第 5 集
+    asyncio.run(get_dramasq_m3u8_advanced("202500838", ep=5))
