@@ -5,8 +5,8 @@ from playwright.async_api import async_playwright
 
 # --- 靈活設定區域 ---
 # 這裡可以直接輸入劇名（例如 "非凡"）或代碼（例如 "202500838"）
-TARGET_INPUT = "202500838"  
-TARGET_EP = 5
+TARGET_INPUT = "202593900"  
+TARGET_EP = 22
 # ------------------
 
 async def run_integrated_scraper():
