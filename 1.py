@@ -3,8 +3,8 @@ import re
 from playwright.async_api import async_playwright
 
 # --- 設定區域 ---
-TARGET_DRAMA_NAME = "非凡"  # 想要抓取影片網址的劇名
-TARGET_EP = 5              # 想要抓取的集數
+TARGET_DRAMA_NAME = "風雨潮"  # 想要抓取影片網址的劇名
+TARGET_EP = 23              # 想要抓取的集數
 # ----------------
 
 async def run_integrated_scraper():
