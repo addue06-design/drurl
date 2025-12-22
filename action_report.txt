@@ -1,4 +1,13 @@
-❌ 依舊未發現 m3u8。頁面標題: 非凡 第05集 - DramasQ線上看
-
---- 偵錯資訊: Iframe 列表 ---
-Frame URL: https://dramasq.io/vodplay/202500838/ep5.html
+✅ 成功提取網址 (非凡 EP5):
+https://hn.bfvvs.com/play/bDkN2Pxa/index.m3u8
+https://play.xluuss.com/play/dG6n2g7b/index.m3u8
+https://v.gsuus.com/play/eERO2Gva/index.m3u8
+https://v11.qrssuv.com/wjv11/202512/02/5ujW4D9a3z89/video/index.m3u8
+https://v.lzcdn25.com/20251202/11104_5de70074/index.m3u8
+https://bf.jisuziyuanbf.com/play/dL962nwe/index.m3u8
+https://vip.ffzy-video.com/20251203/32549_ea83bad3/index.m3u8
+https://cdn.wlcdn88.com:777/2366bc82/index.m3u8
+https://vod12.wgslsw.com/20251206/5ujW4D9a3z89/index.m3u8
+https://bfikuncdn.com/20251202/wMO7rW5I/index.m3u8
+https://ukzy.ukubf3.com/20251202/AAJg9YaN/index.m3u8
+https://hd.ijycnd.com/play/dJ6D2l2d/index.m3u8
