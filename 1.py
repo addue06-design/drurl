@@ -6,7 +6,7 @@ import time
 from playwright.async_api import async_playwright
 
 # --- 設定區域 ---
-TARGET_ID = "5591004" 
+TARGET_ID = "" 
 BASE_DOMAIN = "dramaq.xyz"
 OUTPUT_FILE = "all_episodes_results.txt"
 # ------------------
