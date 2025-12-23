@@ -30,24 +30,23 @@ jobs:
           pip install playwright
           playwright install chromium
 
-      - name: Run Scraper
-        run: python 1.py
+      - name: Run Scrapers
+        run: |
+          python 1.py            # 抓取特定劇集的 M3U8
+          python list_scraper.py # 抓取全站劇集清單
 
       - name: Commit and Push Results
         run: |
-          # 設定 Git 使用者資訊
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 強制將輸出檔案加入暫存區
+          # 加入兩個輸出檔案
           git add all_episodes_results.txt
+          git add drama_list.txt
           
-          # 檢查是否有變動
-          # git status --porcelain 會檢查檔案狀態，如果有輸出代表有變動
           if [ -n "$(git status --porcelain)" ]; then
-            echo "✅ 偵測到內容變動，準備提交..."
-            git commit -m "Update drama links: $(date +'%Y-%m-%d %H:%M:%S')"
+            git commit -m "Update drama links and full list: $(date +'%Y-%m-%d %H:%M:%S')"
             git push
           else
-            echo "ℹ️ 內容與上次完全相同，跳過提交。"
+            echo "No changes to commit."
           fi
